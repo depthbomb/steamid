@@ -1,0 +1,64 @@
+{
+	"name": "@depthbomb/steamid",
+	"version": "0.1.0",
+	"author": {
+		"name": "depthbomb",
+		"url": "https://github.com/depthbomb"
+	},
+	"description": "SteamID parsing and rendering",
+	"license": "MIT",
+	"main": "./dist/index.js",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"import": "./dist/index.mjs",
+		"require": "./dist/index.js",
+		"types": {
+			"import": "./dist/index.d.mts",
+			"require": "./dist/index.d.ts"
+		}
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"keywords": [
+		"typescript",
+		"steam-id",
+		"steamid",
+		"steam"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/depthbomb/steamid.git"
+	},
+	"bugs": {
+		"url": "https://github.com/depthbomb/steamid/issues"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"test": "yarn build && vitest",
+		"release": "yarn build && release-it"
+	},
+	"dependencies": {
+		"cuint": "^0.2.2"
+	},
+	"devDependencies": {
+		"@types/cuint": "^0.2.4",
+		"@types/eslint": "^8.44.7",
+		"@types/node": "^20.10.0",
+		"@typescript-eslint/eslint-plugin": "^6.13.0",
+		"@typescript-eslint/parser": "^6.13.0",
+		"@vitest/coverage-v8": "^0.34.6",
+		"eslint": "^8.54.0",
+		"release-it": "^17.0.0",
+		"terser": "^5.24.0",
+		"tslib": "^2.6.2",
+		"tsup": "^8.0.1",
+		"typescript": "^5.3.2",
+		"vitest": "^0.34.6"
+	},
+	"packageManager": "yarn@4.0.2"
+}
