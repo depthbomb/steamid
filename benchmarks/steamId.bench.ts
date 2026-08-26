@@ -59,6 +59,8 @@ describe('rendering', () => {
 	});
 });
 
-bench('mixed parse and render', () => {
-	new SteamId(steamId3).toSteamId64();
+describe('workflow', () => {
+	bench('mixed parse and render', () => {
+		new SteamId(steamId3).toSteamId64();
+	});
 });
