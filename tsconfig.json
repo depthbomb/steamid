@@ -19,10 +19,8 @@
 
 		// Emit
 		"declaration": true,
-		"importHelpers": true,
 		"inlineSources": true,
 		"newLine": "lf",
-		"noEmitHelpers": true,
 		"outDir": "dist",
 		"preserveConstEnums": false,
 		"removeComments": false,
