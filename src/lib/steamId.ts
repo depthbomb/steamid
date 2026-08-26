@@ -64,8 +64,11 @@ export class SteamId {
 			return;
 		}
 
-		const id2Match = ID2_PATTERN.exec(input);
-		const id3Match = id2Match ? null : matchSteamId3(input);
+		const firstCharacter = input.charCodeAt(0);
+		const id2Match = firstCharacter === 83 ? ID2_PATTERN.exec(input) : null;
+		const id3Match = !id2Match && (firstCharacter === 91 || input.charCodeAt(1) === 58) ? matchSteamId3(input) : null;
+		const isFiveM = firstCharacter === 115 && input.startsWith('steam:');
+		const isSteamId64 = !isFiveM && firstCharacter >= 49 && firstCharacter <= 57 && ID64_PATTERN.test(input);
 
 		if (id2Match) {
 			const matches = id2Match;
@@ -113,10 +116,10 @@ export class SteamId {
 			} else {
 				this.type = TypeCharacter[character as keyof typeof TypeCharacter] ?? Type.Invalid;
 			}
-		} else if (ID64_PATTERN.test(input) || FIVEM_PATTERN.test(input)) {
+		} else if (isSteamId64 || (isFiveM && FIVEM_PATTERN.test(input))) {
 			let value: bigint;
 
-			if (FIVEM_PATTERN.test(input)) {
+			if (isFiveM) {
 				value = BigInt(`0x${input.slice(6)}`);
 				this.format = Format.FiveM;
 			} else {
