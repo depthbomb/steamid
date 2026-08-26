@@ -38,6 +38,7 @@
 		"dist"
 	],
 	"scripts": {
+		"bench": "yarn build && vitest bench --run",
 		"build": "tsup",
 		"test": "yarn build && vitest",
 		"release": "yarn build && release-it"
