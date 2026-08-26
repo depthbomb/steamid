@@ -9,7 +9,7 @@ export default defineConfig({
 	fixedExtension: false,
 	format: ['esm', 'cjs'],
 	minify: true,
-	platform: 'node',
+	platform: 'neutral',
 	target: 'esnext',
 	tsconfig: './tsconfig.json',
 });

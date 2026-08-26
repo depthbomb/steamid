@@ -44,7 +44,7 @@
 		"coverage": "vitest --run --coverage",
 		"lint": "eslint src tests benchmarks *.config.mts --ext .ts --ext .mts",
 		"test": "yarn build && vitest --run",
-		"test:package": "yarn build && node -e \"const api = require('./dist/index.js'); if (typeof api.SteamId !== 'function') process.exit(1)\" && node --input-type=module -e \"const api = await import('./dist/index.mjs'); if (typeof api.SteamId !== 'function') process.exit(1)\"",
+		"test:package": "yarn build && node -e \"const api = require('./dist/index.js'); if (typeof api.SteamId !== 'function') process.exit(1)\" && node --input-type=module -e \"globalThis.Buffer = undefined; const api = await import('./dist/index.mjs'); if (api.SteamId.fromAccountId(22202).toCsFriendCode() !== 'SUCVS-FADA') process.exit(1)\" && node -e \"const fs = require('node:fs'); const bundle = fs.readFileSync('./dist/index.mjs', 'utf8'); if (/node:|require\\(|Buffer/.test(bundle)) process.exit(1)\"",
 		"typecheck": "tsc --noEmit",
 		"release": "yarn build && release-it"
 	},

@@ -1,6 +1,6 @@
 # @depthbomb/steamid
 
-A dependency-free runtime library for parsing, validating, and rendering Steam IDs. It supports Steam's 64-bit component layout and the common representations used by Steam, FiveM, invite links, and Counter-Strike.
+A dependency-free universal library for parsing, validating, and rendering Steam IDs in browsers and server runtimes. It supports Steam's 64-bit component layout and the common representations used by Steam, FiveM, invite links, and Counter-Strike.
 
 ## Supported inputs
 
@@ -28,6 +28,8 @@ steamId.toFiveM();          // steam:110000103f11c51
 steamId.toInviteCode();     // fwc-crhc
 steamId.toShortUrl();       // https://s.team/p/fwc-crhc
 ```
+
+Both ESM and CommonJS builds are provided. The package has no Node.js built-in or browser-global dependencies; environments only need native `BigInt` support.
 
 Invite codes and profile links can be passed directly to the constructor or to their stricter factory methods:
 

@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
 import { Format } from './Format';
 import { Instance } from './Instance';
 import { Universe } from './Universe';
 import { Type, TypeCharacter } from './Type';
 import { ChatInstanceFlags } from './ChatInstanceFlags';
+import { steamAccountHash } from './md5';
 
 const MAX_ACCOUNT_ID = 0xFFFFFFFF;
 const MAX_INSTANCE = 0x000FFFFF;
@@ -278,11 +278,7 @@ export class SteamId {
 			throw new Error('Only individual-type SteamIDs can be rendered to Counter-Strike friend codes.');
 		}
 
-		const hashInput = Buffer.allocUnsafe(8);
-		hashInput.writeBigUInt64LE(0x4353474F00000000n | BigInt(this.accountId));
-
-		const digest = createHash('md5').update(hashInput).digest();
-		const hash = BigInt(digest.readUInt32LE(0));
+		const hash = BigInt(steamAccountHash(this.accountId));
 		let result = 0n;
 
 		for (let index = 0n; index < 8n; index++) {
@@ -294,10 +290,14 @@ export class SteamId {
 			result = ((result >> 31n) << 32n) | (value << 1n) | hashBit;
 		}
 
-		const resultBuffer = Buffer.allocUnsafe(8);
-		resultBuffer.writeBigUInt64BE(result);
-		resultBuffer.reverse();
-		result = resultBuffer.readBigUInt64BE();
+		let reversed = 0n;
+
+		for (let index = 0; index < 8; index++) {
+			reversed = (reversed << 8n) | (result & 0xFFn);
+			result >>= 8n;
+		}
+
+		result = reversed;
 
 		const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 		let friendCode = '';
