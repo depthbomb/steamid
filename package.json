@@ -42,24 +42,23 @@
 		"build": "tsdown",
 		"check": "yarn lint && yarn typecheck && yarn coverage && yarn test:package",
 		"coverage": "vitest --run --coverage",
-		"lint": "eslint src tests benchmarks *.config.mts --ext .ts --ext .mts",
+		"lint": "eslint src tests benchmarks *.config.mts",
 		"test": "yarn build && vitest --run",
 		"test:package": "yarn build && node -e \"const api = require('./dist/index.js'); if (typeof api.SteamId !== 'function') process.exit(1)\" && node --input-type=module -e \"globalThis.Buffer = undefined; const api = await import('./dist/index.mjs'); if (api.SteamId.fromAccountId(22202).toCsFriendCode() !== 'SUCVS-FADA') process.exit(1)\" && node -e \"const fs = require('node:fs'); const bundle = fs.readFileSync('./dist/index.mjs', 'utf8'); if (/node:|require\\(|Buffer/.test(bundle)) process.exit(1)\"",
 		"typecheck": "tsc --noEmit",
 		"release": "yarn build && release-it"
 	},
 	"devDependencies": {
-		"@types/eslint": "^8.44.7",
-		"@types/node": "^20.19.0",
-		"@typescript-eslint/eslint-plugin": "^6.13.0",
-		"@typescript-eslint/parser": "^6.13.0",
-		"@vitest/coverage-v8": "3.2.6",
-		"eslint": "^8.54.0",
-		"release-it": "^20.2.1",
+		"@types/node": "^26.3.0",
+		"@typescript-eslint/eslint-plugin": "^8.68.0",
+		"@typescript-eslint/parser": "^8.68.0",
+		"@vitest/coverage-v8": "^4.1.11",
+		"eslint": "^10.9.1",
+		"release-it": "^21.0.2",
 		"tsdown": "^0.22.14",
-		"tslib": "^2.6.2",
-		"typescript": "^5.3.2",
-		"vitest": "^3.2.6"
+		"tslib": "^2.8.1",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.11"
 	},
-	"packageManager": "yarn@4.0.2"
+	"packageManager": "yarn@4.18.0"
 }

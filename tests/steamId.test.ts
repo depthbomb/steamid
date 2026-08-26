@@ -178,7 +178,7 @@ test('parses invite codes and short profile URLs', () => {
 	expect(SteamId.renderToFormat('[U:1:66133073]', Format.InviteCode)).toBe('fwc-crhc');
 	expect(SteamId.renderToFormat('[U:1:66133073]', Format.ShortUrl)).toBe('https://s.team/p/fwc-crhc');
 
-	for (const input of ['c-', 'cb-b', 'fwccrhc', 'abc-def', 'https://example.com/p/fwc-crhc']) {
+	for (const input of ['b', 'c-', 'cb-b', 'fwccrhc', 'abc-def', 'https://example.com/p/fwc-crhc']) {
 		expect(() => new SteamId(input), input).toThrow(/Invalid/);
 	}
 
