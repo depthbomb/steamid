@@ -1,5 +1,5 @@
+import { SteamId } from '../dist';
 import { bench, describe } from 'vitest';
-import { SteamId } from '../dist/index';
 
 const steamId2 = 'STEAM_0:1:33066536';
 const steamId3 = '[U:1:66133073]';

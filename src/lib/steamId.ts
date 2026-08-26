@@ -1,9 +1,9 @@
 import { Format } from './Format';
 import { Instance } from './Instance';
 import { Universe } from './Universe';
+import { steamAccountHash } from './md5';
 import { Type, TypeCharacter } from './Type';
 import { ChatInstanceFlags } from './ChatInstanceFlags';
-import { steamAccountHash } from './md5';
 
 const MAX_ACCOUNT_ID = 0xFFFFFFFF;
 const MAX_INSTANCE = 0x000FFFFF;
