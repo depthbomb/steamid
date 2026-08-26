@@ -5,4 +5,6 @@ export const enum Format {
 	AccountId,
 	FiveM,
 	None,
+	InviteCode,
+	ShortUrl,
 }

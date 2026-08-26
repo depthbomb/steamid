@@ -20,8 +20,11 @@ export class SteamId {
 	public readonly id3Pattern:   RegExp;
 	public readonly id64Pattern:  RegExp;
 	public readonly fiveMPattern: RegExp;
+	public readonly invitePattern: RegExp;
+	public readonly shortUrlPattern: RegExp;
 
 	private readonly inviteReplacementMap: Map<string, string>;
+	private readonly inviteReverseMap: Map<string, string>;
 
 	public constructor(input?: string) {
 		this.universe  = Universe.Invalid;
@@ -34,6 +37,8 @@ export class SteamId {
 		this.id3Pattern   = /^(?:\[[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?\]|[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?)$/;
 		this.id64Pattern  = /^[1-9][0-9]{16,19}$/;
 		this.fiveMPattern = /^steam:[a-f0-9]{15}$/;
+		this.invitePattern = /^(?:[bcdfghjkmnpqrtvw]{1,3}|[bcdfghjkmnpqrtvw]{2,4}-[bcdfghjkmnpqrtvw]{2,4})$/i;
+		this.shortUrlPattern = /^https?:\/\/(?:s\.team\/p|steamcommunity\.com\/user)\/([^/?#]+)\/?$/i;
 
 		this.inviteReplacementMap = new Map<string, string>([
 			['0', 'b'],
@@ -53,6 +58,7 @@ export class SteamId {
 			['e', 'v'],
 			['f', 'w'],
 		]);
+		this.inviteReverseMap = new Map(Array.from(this.inviteReplacementMap, ([hex, replacement]) => [replacement, hex]));
 
 		if (input === undefined) {
 			return;
@@ -123,6 +129,23 @@ export class SteamId {
 			this.instance  = num.shiftRight(32).toNumber() & 0xFFFFF;
 			this.type      = num.shiftRight(20).toNumber() & 0xF;
 			this.universe  = num.shiftRight(4).toNumber();
+		} else {
+			const shortUrlMatch = input.match(this.shortUrlPattern);
+			const inviteCode = shortUrlMatch?.[1] ?? input;
+
+			if (this.invitePattern.test(inviteCode)) {
+				const normalized = inviteCode.toLowerCase();
+				const accountIdHex = normalized.replace('-', '').split('').map(character => this.inviteReverseMap.get(character)).join('');
+				const accountId = parseInt(accountIdHex, 16);
+
+				if (accountId > 0 && this.encodeInviteCode(accountId) === normalized) {
+					this.universe  = Universe.Public;
+					this.type      = Type.Individual;
+					this.instance  = Instance.Desktop;
+					this.accountId = accountId;
+					this.format    = shortUrlMatch ? Format.ShortUrl : Format.InviteCode;
+				}
+			}
 		}
 
 		if (!this.isValid()) {
@@ -216,7 +239,11 @@ export class SteamId {
 			throw new Error('Only individual-type SteamIDs can be rendered to invite codes.');
 		}
 
-		const accountIdHex = this.accountId.toString(16);
+		return this.encodeInviteCode(this.accountId);
+	}
+
+	private encodeInviteCode(accountId: number): string {
+		const accountIdHex = accountId.toString(16);
 		const inviteCode   = accountIdHex.split('').map(c => this.inviteReplacementMap.has(c) ? this.inviteReplacementMap.get(c) : c).join('');
 
 		if (inviteCode.length <= 3) {
@@ -250,12 +277,31 @@ export class SteamId {
 		return inst;
 	}
 
+	public static fromInviteCode(inviteCode: string): SteamId {
+		const inst = new this(inviteCode);
+
+		if (inst.format !== Format.InviteCode) {
+			throw new Error('Invalid Steam invite code provided.');
+		}
+
+		return inst;
+	}
+
+	public static fromShortUrl(shortUrl: string): SteamId {
+		const inst = new this(shortUrl);
+
+		if (inst.format !== Format.ShortUrl) {
+			throw new Error('Invalid Steam short profile URL provided.');
+		}
+
+		return inst;
+	}
+
 	public static renderToFormat(input: string, format: Exclude<Format, Format.AccountId>): string;
 	public static renderToFormat(input: string, format: Format.AccountId): number;
 	public static renderToFormat(input: string, format: Format): string | number {
 		const inst = new this(input);
 		switch (format) {
-			default:
 			case Format.SteamId:
 				return inst.toSteamId2();
 			case Format.SteamId3:
@@ -266,6 +312,12 @@ export class SteamId {
 				return inst.toFiveM();
 			case Format.AccountId:
 				return inst.accountId;
+			case Format.InviteCode:
+				return inst.toInviteCode();
+			case Format.ShortUrl:
+				return inst.toShortUrl();
+			default:
+				throw new Error('Unsupported SteamID output format.');
 		}
 	}
 }

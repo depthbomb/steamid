@@ -148,6 +148,37 @@ test('validates account IDs and formats invite codes', () => {
 	}
 });
 
+test('parses invite codes and short profile URLs', () => {
+	const inputs: Array<[string, Format]> = [
+		['fwc-crhc', Format.InviteCode],
+		['FWC-CRHC', Format.InviteCode],
+		['https://s.team/p/fwc-crhc', Format.ShortUrl],
+		['http://s.team/p/fwc-crhc/', Format.ShortUrl],
+		['https://steamcommunity.com/user/fwc-crhc', Format.ShortUrl],
+	];
+
+	for (const [input, format] of inputs) {
+		const steamId = new SteamId(input);
+
+		expect(steamId.accountId).toBe(66133073);
+		expect(steamId.format).toBe(format);
+		expect(steamId.toSteamId64()).toBe('76561198026398801');
+	}
+
+	expect(SteamId.fromInviteCode('fwc-crhc').accountId).toBe(66133073);
+	expect(SteamId.fromShortUrl('https://s.team/p/fwc-crhc').accountId).toBe(66133073);
+	expect(SteamId.renderToFormat('[U:1:66133073]', Format.InviteCode)).toBe('fwc-crhc');
+	expect(SteamId.renderToFormat('[U:1:66133073]', Format.ShortUrl)).toBe('https://s.team/p/fwc-crhc');
+
+	for (const input of ['c-', 'cb-b', 'fwccrhc', 'abc-def', 'https://example.com/p/fwc-crhc']) {
+		expect(() => new SteamId(input), input).toThrow(/Invalid/);
+	}
+
+	expect(() => SteamId.fromInviteCode('[U:1:1]')).toThrow(/invite code/);
+	expect(() => SteamId.fromShortUrl('fwc-crhc')).toThrow(/profile URL/);
+	expect(() => SteamId.renderToFormat('[U:1:1]', Format.None)).toThrow(/Unsupported/);
+});
+
 test('classifies chat instance flags', () => {
 	const groupChat = new SteamId('[c:1:123:5]');
 	const lobby = new SteamId('[L:1:123:5]');
