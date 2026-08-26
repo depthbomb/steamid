@@ -1,4 +1,5 @@
 import { UINT64 } from 'cuint';
+import { createHash } from 'node:crypto';
 import { Format } from './Format';
 import { Instance } from './Instance';
 import { Universe } from './Universe';
@@ -261,6 +262,47 @@ export class SteamId {
 		return `https://s.team/p/${inviteCode}`;
 	}
 
+	public toCsFriendCode(): string {
+		if (this.type !== Type.Individual) {
+			throw new Error('Only individual-type SteamIDs can be rendered to Counter-Strike friend codes.');
+		}
+
+		const hashInput = Buffer.allocUnsafe(8);
+		hashInput.writeBigUInt64LE(0x4353474F00000000n | BigInt(this.accountId));
+
+		const digest = createHash('md5').update(hashInput).digest();
+		const hash = BigInt(digest.readUInt32LE(0));
+		let result = 0n;
+
+		for (let index = 0n; index < 8n; index++) {
+			const accountNibble = (BigInt(this.accountId) >> (4n * index)) & 0xFn;
+			const hashBit = (hash >> index) & 1n;
+			const value = (result << 4n) | accountNibble;
+
+			result = ((result >> 28n) << 32n) | value;
+			result = ((result >> 31n) << 32n) | (value << 1n) | hashBit;
+		}
+
+		const resultBuffer = Buffer.allocUnsafe(8);
+		resultBuffer.writeBigUInt64BE(result);
+		resultBuffer.reverse();
+		result = resultBuffer.readBigUInt64BE();
+
+		const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+		let friendCode = '';
+
+		for (let index = 0; index < 13; index++) {
+			if (index === 4 || index === 9) {
+				friendCode += '-';
+			}
+
+			friendCode += alphabet[Number(result & 31n)];
+			result >>= 5n;
+		}
+
+		return friendCode.slice(5);
+	}
+
 	public static fromAccountId(accountId: number): SteamId {
 		if (!Number.isInteger(accountId) || accountId <= 0 || accountId > SteamId.maxAccountId) {
 			throw new RangeError('Account ID must be an unsigned 32-bit integer greater than zero.');
@@ -316,6 +358,8 @@ export class SteamId {
 				return inst.toInviteCode();
 			case Format.ShortUrl:
 				return inst.toShortUrl();
+			case Format.CsFriendCode:
+				return inst.toCsFriendCode();
 			default:
 				throw new Error('Unsupported SteamID output format.');
 		}

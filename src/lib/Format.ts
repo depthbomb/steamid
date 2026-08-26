@@ -7,4 +7,5 @@ export const enum Format {
 	None,
 	InviteCode,
 	ShortUrl,
+	CsFriendCode,
 }

@@ -179,6 +179,15 @@ test('parses invite codes and short profile URLs', () => {
 	expect(() => SteamId.renderToFormat('[U:1:1]', Format.None)).toThrow(/Unsupported/);
 });
 
+test('renders Counter-Strike friend codes', () => {
+	const steamId = SteamId.fromAccountId(22202);
+
+	expect(steamId.toSteamId64()).toBe('76561197960287930');
+	expect(steamId.toCsFriendCode()).toBe('SUCVS-FADA');
+	expect(SteamId.renderToFormat('76561197960287930', Format.CsFriendCode)).toBe('SUCVS-FADA');
+	expect(() => new SteamId('[g:1:42]').toCsFriendCode()).toThrow(/individual/);
+});
+
 test('classifies chat instance flags', () => {
 	const groupChat = new SteamId('[c:1:123:5]');
 	const lobby = new SteamId('[L:1:123:5]');
