@@ -1,0 +1,39 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"categories": {
+		"correctness": "error",
+		"perf": "error",
+		"suspicious": "error"
+	},
+	"ignorePatterns": [
+		"coverage/**",
+		"dist/**",
+		"node_modules/**"
+	],
+	"options": {
+		"denyWarnings": true,
+		"reportUnusedDisableDirectives": "error"
+	},
+	"plugins": [
+		"oxc",
+		"typescript",
+		"unicorn",
+		"vitest"
+	],
+	"rules": {
+		"eqeqeq": "error",
+		"no-empty": "error",
+		"no-useless-escape": "error",
+		"typescript/ban-ts-comment": "warn",
+		"typescript/no-unused-vars": "warn",
+		"vitest/valid-expect": "off"
+	},
+	"overrides": [
+		{
+			"files": ["benchmarks/**/*.ts"],
+			"rules": {
+				"no-new": "off"
+			}
+		}
+	]
+}
