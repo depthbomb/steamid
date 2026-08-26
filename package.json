@@ -40,7 +40,9 @@
 	"scripts": {
 		"bench": "yarn build && vitest bench --run",
 		"build": "tsdown",
+		"coverage": "vitest --run --coverage",
 		"test": "yarn build && vitest",
+		"test:package": "yarn build && node -e \"const api = require('./dist/index.js'); if (typeof api.SteamId !== 'function') process.exit(1)\" && node --input-type=module -e \"const api = await import('./dist/index.mjs'); if (typeof api.SteamId !== 'function') process.exit(1)\"",
 		"release": "yarn build && release-it"
 	},
 	"devDependencies": {

@@ -1,5 +1,12 @@
 import { test, expect } from 'vitest';
-import { Type, Format, SteamId, Instance, Universe } from '../dist/index';
+import { Type, Format, SteamId, Instance, Universe } from '../src';
+
+function pack(universe: number, type: number, instance: number, accountId: number): string {
+	return ((BigInt(universe) << 56n) |
+		(BigInt(type) << 52n) |
+		(BigInt(instance) << 32n) |
+		BigInt(accountId)).toString();
+}
 
 test('parses IDs', () => {
 	const sid2 = new SteamId('STEAM_0:1:33066536');
@@ -141,6 +148,7 @@ test('validates account IDs and formats invite codes', () => {
 		expect(steamId.isValid()).toBe(true);
 		expect(steamId.toInviteCode()).toBe(expected);
 		expect(steamId.toShortUrl()).toBe(`https://s.team/p/${expected}`);
+		expect(new SteamId(expected).accountId).toBe(accountId);
 	}
 
 	for (const accountId of [0, -1, 1.5, NaN, Infinity, -Infinity, 0x100000000]) {
@@ -220,6 +228,102 @@ test('rejects values and renderings outside their representable formats', () => 
 	const consoleId = new SteamId(consoleValue.toString());
 	expect(consoleId.isValid()).toBe(true);
 	expect(() => consoleId.toSteamId3()).toThrow(/cannot be represented/);
+});
+
+test('supports every representable SteamID3 account type', () => {
+	const cases: Array<[string, Type, number, string]> = [
+		['[U:1:42]', Type.Individual, Instance.Desktop, '[U:1:42]'],
+		['[M:1:42:2]', Type.Multiseat, Instance.Console, '[M:1:42:2]'],
+		['[G:1:42]', Type.GameServer, Instance.All, '[G:1:42]'],
+		['[A:1:0:12]', Type.AnonymousGameServer, 12, '[A:1:0:12]'],
+		['[P:1:42]', Type.Pending, Instance.All, '[P:1:42]'],
+		['[C:1:42]', Type.ContentServer, Instance.All, '[C:1:42]'],
+		['[g:1:42]', Type.Clan, Instance.All, '[g:1:42]'],
+		['[T:1:42]', Type.Chat, Instance.All, '[T:1:42]'],
+		['[a:1:42]', Type.AnonymousUser, Instance.All, '[a:1:42]'],
+	];
+
+	for (const [input, type, instance, rendered] of cases) {
+		const steamId = new SteamId(input);
+		const reparsed = new SteamId(steamId.toSteamId64());
+
+		expect(steamId.type, input).toBe(type);
+		expect(steamId.instance, input).toBe(instance);
+		expect(steamId.isValid(), input).toBe(true);
+		expect(steamId.toSteamId3(), input).toBe(rendered);
+		expect(reparsed.type, input).toBe(type);
+		expect(reparsed.instance, input).toBe(instance);
+		expect(reparsed.accountId, input).toBe(steamId.accountId);
+	}
+
+	const lobby = new SteamId('[L:1:42]');
+	expect(lobby.toSteamId3()).toBe('[L:1:42]');
+
+	const matchmakingLobby = new SteamId(pack(1, Type.Chat, 0x20000, 42));
+	expect(matchmakingLobby.isLobby()).toBe(true);
+	expect(matchmakingLobby.toSteamId3()).toBe('[T:1:42]');
+});
+
+test('round trips account and universe boundaries', () => {
+	const accountIds = [1, 2, 3, 15, 16, 255, 256, 4095, 4096, 65535, 66133073, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF];
+
+	for (const accountId of accountIds) {
+		const source = SteamId.fromAccountId(accountId);
+
+		for (const rendered of [source.toSteamId2(), source.toSteamId3(), source.toSteamId64(), source.toFiveM()]) {
+			const parsed = new SteamId(rendered);
+			expect(parsed.accountId, rendered).toBe(accountId);
+			expect(parsed.universe, rendered).toBe(Universe.Public);
+			expect(parsed.type, rendered).toBe(Type.Individual);
+			expect(parsed.instance, rendered).toBe(Instance.Desktop);
+		}
+	}
+
+	for (const universe of [Universe.Public, Universe.Beta, Universe.Internal, Universe.Dev]) {
+		const steamId = new SteamId(`STEAM_${universe}:0:1`);
+		expect(steamId.universe).toBe(universe);
+		expect(steamId.toSteamId2()).toBe(`STEAM_${universe === Universe.Public ? 0 : universe}:0:1`);
+		expect(new SteamId(steamId.toSteamId64()).universe).toBe(universe);
+	}
+});
+
+test('applies Valve semantic validity rules', () => {
+	const valid = {
+		universe: Universe.Public,
+		type: Type.Individual,
+		instance: Instance.Desktop,
+		accountId: 1,
+	};
+	const invalidChanges: Array<Partial<typeof valid>> = [
+		{ accountId: -1 },
+		{ accountId: 1.5 },
+		{ accountId: 0x100000000 },
+		{ instance: -1 },
+		{ instance: 1.5 },
+		{ instance: 0x100000 },
+		{ type: Type.Invalid },
+		{ type: 1.5 },
+		{ type: Type.Max },
+		{ universe: Universe.Invalid },
+		{ universe: 1.5 },
+		{ universe: Universe.Max },
+		{ accountId: 0 },
+		{ instance: Instance.Web },
+	];
+
+	for (const change of invalidChanges) {
+		const steamId = Object.assign(new SteamId(), valid, change);
+		expect(steamId.isValid(), JSON.stringify(change)).toBe(false);
+	}
+
+	expect(() => new SteamId('[g:1:0]')).toThrow(/Invalid/);
+	expect(() => new SteamId('[g:1:1:1]')).toThrow(/Invalid/);
+	expect(() => new SteamId('[G:1:0]')).toThrow(/Invalid/);
+	expect(() => new SteamId('[i:1:1]')).toThrow(/Invalid/);
+
+	const nonDesktop = SteamId.fromAccountId(1);
+	nonDesktop.instance = Instance.Web;
+	expect(nonDesktop.toSteamId3()).toBe('[U:1:1:4]');
 });
 
 test('renders individual IDs', () => {
