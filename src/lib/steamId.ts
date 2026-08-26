@@ -54,7 +54,7 @@ export class SteamId {
 			['f', 'w'],
 		]);
 
-		if (!input) {
+		if (input === undefined) {
 			return;
 		}
 
@@ -131,15 +131,23 @@ export class SteamId {
 	}
 
 	public isValid(): boolean {
-		if (this.type <= Type.Invalid || this.type > Type.AnonymousUser) {
+		if (!Number.isInteger(this.accountId) || this.accountId < 0 || this.accountId > SteamId.maxAccountId) {
 			return false;
 		}
 
-		if (this.universe <= Universe.Invalid || this.universe > Universe.Dev) {
+		if (!Number.isInteger(this.instance) || this.instance < 0 || this.instance > SteamId.maxInstance) {
 			return false;
 		}
 
-		if (this.type === Type.Individual && (this.accountId === 0 || this.instance > Instance.Web)) {
+		if (!Number.isInteger(this.type) || this.type <= Type.Invalid || this.type > Type.AnonymousUser) {
+			return false;
+		}
+
+		if (!Number.isInteger(this.universe) || this.universe <= Universe.Invalid || this.universe > Universe.Dev) {
+			return false;
+		}
+
+		if (this.type === Type.Individual && (this.accountId === 0 || this.instance !== Instance.Desktop)) {
 			return false;
 		}
 
@@ -155,7 +163,7 @@ export class SteamId {
 	}
 
 	public isGroupChat(): boolean {
-		return this.type === Type.Chat && this.instance === ChatInstanceFlags.Clan;
+		return this.type === Type.Chat && !!(this.instance & ChatInstanceFlags.Clan);
 	}
 
 	public isLobby(): boolean {
@@ -171,11 +179,17 @@ export class SteamId {
 	}
 
 	public toSteamId3(withBrackets = true): string {
-		let character = TypeCharacter[this.type] ?? 'i';
+		let character = TypeCharacter[this.type];
 
-		if (this.instance & ChatInstanceFlags.Clan) {
+		if (character === undefined) {
+			throw new Error('This SteamID account type cannot be represented as SteamID3.');
+		}
+
+		const chatFlags = this.instance & ~0xFFF;
+
+		if (chatFlags === ChatInstanceFlags.Clan) {
 			character = 'c';
-		} else if (this.instance & ChatInstanceFlags.Lobby) {
+		} else if (chatFlags === ChatInstanceFlags.Lobby) {
 			character = 'L';
 		}
 
@@ -190,6 +204,10 @@ export class SteamId {
 	}
 
 	public toFiveM(): string {
+		if (this.type !== Type.Individual) {
+			throw new Error('Only individual-type SteamIDs can be rendered to FiveM identifiers.');
+		}
+
 		return `steam:${this.toSteamId64(true)}`;
 	}
 
@@ -201,7 +219,13 @@ export class SteamId {
 		const accountIdHex = this.accountId.toString(16);
 		const inviteCode   = accountIdHex.split('').map(c => this.inviteReplacementMap.has(c) ? this.inviteReplacementMap.get(c) : c).join('');
 
-		return `${inviteCode.slice(0, 3)}-${inviteCode.slice(3)}`;
+		if (inviteCode.length <= 3) {
+			return inviteCode;
+		}
+
+		const middle = Math.floor(inviteCode.length / 2);
+
+		return `${inviteCode.slice(0, middle)}-${inviteCode.slice(middle)}`;
 	}
 
 	public toShortUrl(): string {
@@ -211,12 +235,16 @@ export class SteamId {
 	}
 
 	public static fromAccountId(accountId: number): SteamId {
+		if (!Number.isInteger(accountId) || accountId <= 0 || accountId > SteamId.maxAccountId) {
+			throw new RangeError('Account ID must be an unsigned 32-bit integer greater than zero.');
+		}
+
 		const inst = new this();
 
 		inst.universe  = Universe.Public;
 		inst.type      = Type.Individual;
 		inst.instance  = Instance.Desktop;
-		inst.accountId = isNaN(accountId) ? 0 : accountId;
+		inst.accountId = accountId;
 		inst.format    = Format.AccountId;
 
 		return inst;

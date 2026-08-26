@@ -4,5 +4,5 @@ export const enum Universe {
 	Beta,
 	Internal,
 	Dev,
-	Max = 6,
+	Max,
 }

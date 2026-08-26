@@ -115,6 +115,71 @@ test('rejects malformed and out-of-range IDs', () => {
 	expect(() => new SteamId('[U:1:4294967296]')).toThrow(/32-bit/);
 	expect(() => new SteamId('[A:1:1:1048576]')).toThrow(/20-bit/);
 	expect(() => new SteamId(((1n << 64n) + 76561198026398801n).toString())).toThrow(/64-bit/);
+	expect(() => new SteamId('')).toThrow(/Invalid/);
+	expect(() => new SteamId('[U:1:1:0]')).toThrow(/Invalid/);
+	expect(() => new SteamId('[U:1:1:2]')).toThrow(/Invalid/);
+	expect(() => new SteamId('[U:1:1:4]')).toThrow(/Invalid/);
+});
+
+test('validates account IDs and formats invite codes', () => {
+	const expectedCodes = new Map([
+		[1, 'c'],
+		[15, 'w'],
+		[16, 'cb'],
+		[255, 'ww'],
+		[256, 'cbb'],
+		[4095, 'www'],
+		[4096, 'cb-bb'],
+		[65535, 'ww-ww'],
+		[1048575, 'ww-www'],
+		[0xFFFFFFFF, 'wwww-wwww'],
+	]);
+
+	for (const [accountId, expected] of expectedCodes) {
+		const steamId = SteamId.fromAccountId(accountId);
+
+		expect(steamId.isValid()).toBe(true);
+		expect(steamId.toInviteCode()).toBe(expected);
+		expect(steamId.toShortUrl()).toBe(`https://s.team/p/${expected}`);
+	}
+
+	for (const accountId of [0, -1, 1.5, NaN, Infinity, -Infinity, 0x100000000]) {
+		expect(() => SteamId.fromAccountId(accountId), String(accountId)).toThrow(RangeError);
+	}
+});
+
+test('classifies chat instance flags', () => {
+	const groupChat = new SteamId('[c:1:123:5]');
+	const lobby = new SteamId('[L:1:123:5]');
+	const combinedValue = (1n << 56n) | (8n << 52n) | (0xC0000n << 32n) | 123n;
+	const combined = new SteamId(combinedValue.toString());
+
+	expect(groupChat.isGroupChat()).toBe(true);
+	expect(groupChat.isLobby()).toBe(false);
+	expect(groupChat.toSteamId3()).toBe('[c:1:123]');
+	expect(lobby.isGroupChat()).toBe(false);
+	expect(lobby.isLobby()).toBe(true);
+	expect(combined.isGroupChat()).toBe(true);
+	expect(combined.isLobby()).toBe(true);
+	expect(combined.toSteamId3()).toBe('[T:1:123]');
+});
+
+test('rejects values and renderings outside their representable formats', () => {
+	const invalid = new SteamId();
+	invalid.universe = NaN;
+	invalid.type = Type.Individual;
+	invalid.instance = Instance.Desktop;
+	invalid.accountId = 1;
+	expect(invalid.isValid()).toBe(false);
+
+	invalid.universe = Universe.Public;
+	invalid.type = 1.5;
+	expect(invalid.isValid()).toBe(false);
+
+	const consoleValue = (1n << 56n) | (9n << 52n) | 42n;
+	const consoleId = new SteamId(consoleValue.toString());
+	expect(consoleId.isValid()).toBe(true);
+	expect(() => consoleId.toSteamId3()).toThrow(/cannot be represented/);
 });
 
 test('renders individual IDs', () => {
@@ -208,6 +273,7 @@ test('renders group IDs', () => {
 	expect(() => gid3.toSteamId2()).toThrow(/individual/);
 	expect(() => gid3.toInviteCode()).toThrow(/individual/);
 	expect(() => gid3.toShortUrl()).toThrow(/individual/);
+	expect(() => gid3.toFiveM()).toThrow(/individual/);
 
 	const gid3_2 = new SteamId('g:1:40528594');
 	expect(gid3_2.toSteamId3()).toBe('[g:1:40528594]');
