@@ -68,13 +68,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@depthbomb/steamid@workspace:."
   dependencies:
-    "@types/cuint": "npm:^0.2.4"
     "@types/eslint": "npm:^8.44.7"
     "@types/node": "npm:^20.19.0"
     "@typescript-eslint/eslint-plugin": "npm:^6.13.0"
     "@typescript-eslint/parser": "npm:^6.13.0"
     "@vitest/coverage-v8": "npm:3.2.6"
-    cuint: "npm:^0.2.2"
     eslint: "npm:^8.54.0"
     release-it: "npm:^20.2.1"
     terser: "npm:^5.24.0"
@@ -1212,13 +1210,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/cuint@npm:^0.2.4":
-  version: 0.2.4
-  resolution: "@types/cuint@npm:0.2.4"
-  checksum: f68cff146bcd516be646d49e7fd9b8d07b23ce98b3c3c836e61e67d7a23f168a14ab8a422306a3e79cbc14987ad9db76fed91d664a5b059a5b600d085c2c8581
-  languageName: node
-  linkType: hard
-
 "@types/deep-eql@npm:*":
   version: 4.0.2
   resolution: "@types/deep-eql@npm:4.0.2"
@@ -2009,13 +2000,6 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
-  languageName: node
-  linkType: hard
-
-"cuint@npm:^0.2.2":
-  version: 0.2.2
-  resolution: "cuint@npm:0.2.2"
-  checksum: ba56735799e04cd8fd8e386bfde52298e26179665f0063a7a22aaf5771e1b350f1b3baa83c719097cb650766b0e5067d16121db71f88fad4b2ef1ed423d646b7
   languageName: node
   linkType: hard
 

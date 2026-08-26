@@ -1,4 +1,3 @@
-import { UINT64 } from 'cuint';
 import { createHash } from 'node:crypto';
 import { Format } from './Format';
 import { Instance } from './Instance';
@@ -6,11 +5,34 @@ import { Universe } from './Universe';
 import { Type, TypeCharacter } from './Type';
 import { ChatInstanceFlags } from './ChatInstanceFlags';
 
-export class SteamId {
-	private static readonly maxAccountId = 0xFFFFFFFF;
-	private static readonly maxInstance  = 0x000FFFFF;
-	private static readonly maxSteamId64 = (1n << 64n) - 1n;
+const MAX_ACCOUNT_ID = 0xFFFFFFFF;
+const MAX_INSTANCE = 0x000FFFFF;
+const MAX_STEAM_ID64 = (1n << 64n) - 1n;
+const ACCOUNT_ID_MASK = 0xFFFFFFFFn;
+const INSTANCE_MASK = 0xFFFFFn;
+const TYPE_MASK = 0xFn;
 
+const ID2_PATTERN = /^STEAM_([0-4]):([0-1]):(0|[1-9][0-9]{0,9})$/;
+const ID3_PATTERN = /^(?:\[[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?\]|[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?)$/;
+const ID3_COMPONENT_PATTERN = /^([AGMPCgcLTIUai]):([0-4]):(0|[1-9][0-9]{0,9})(?::([0-9]{1,7}))?$/;
+const ID64_PATTERN = /^[1-9][0-9]{16,19}$/;
+const FIVEM_PATTERN = /^steam:[a-f0-9]{15}$/;
+const INVITE_PATTERN = /^(?:[bcdfghjkmnpqrtvw]{1,3}|[bcdfghjkmnpqrtvw]{2,4}-[bcdfghjkmnpqrtvw]{2,4})$/i;
+const SHORT_URL_PATTERN = /^https?:\/\/(?:s\.team\/p|steamcommunity\.com\/user)\/([^/?#]+)\/?$/i;
+const INVITE_ALPHABET = 'bcdfghjkmnpqrtvw';
+
+function matchSteamId3(input: string): RegExpMatchArray | null {
+	const opensWithBracket = input.startsWith('[');
+	const closesWithBracket = input.endsWith(']');
+
+	if (opensWithBracket !== closesWithBracket) {
+		return null;
+	}
+
+	return ID3_COMPONENT_PATTERN.exec(opensWithBracket ? input.slice(1, -1) : input);
+}
+
+export class SteamId {
 	public universe:  number;
 	public type:      number;
 	public instance:  number;
@@ -24,9 +46,6 @@ export class SteamId {
 	public readonly invitePattern: RegExp;
 	public readonly shortUrlPattern: RegExp;
 
-	private readonly inviteReplacementMap: Map<string, string>;
-	private readonly inviteReverseMap: Map<string, string>;
-
 	public constructor(input?: string) {
 		this.universe  = Universe.Invalid;
 		this.type      = Type.Invalid;
@@ -34,42 +53,25 @@ export class SteamId {
 		this.accountId = 0;
 		this.format    = Format.None;
 
-		this.id2Pattern   = /^STEAM_([0-4]):([0-1]):(0|[1-9][0-9]{0,9})$/;
-		this.id3Pattern   = /^(?:\[[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?\]|[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?)$/;
-		this.id64Pattern  = /^[1-9][0-9]{16,19}$/;
-		this.fiveMPattern = /^steam:[a-f0-9]{15}$/;
-		this.invitePattern = /^(?:[bcdfghjkmnpqrtvw]{1,3}|[bcdfghjkmnpqrtvw]{2,4}-[bcdfghjkmnpqrtvw]{2,4})$/i;
-		this.shortUrlPattern = /^https?:\/\/(?:s\.team\/p|steamcommunity\.com\/user)\/([^/?#]+)\/?$/i;
-
-		this.inviteReplacementMap = new Map<string, string>([
-			['0', 'b'],
-			['1', 'c'],
-			['2', 'd'],
-			['3', 'f'],
-			['4', 'g'],
-			['5', 'h'],
-			['6', 'j'],
-			['7', 'k'],
-			['8', 'm'],
-			['9', 'n'],
-			['a', 'p'],
-			['b', 'q'],
-			['c', 'r'],
-			['d', 't'],
-			['e', 'v'],
-			['f', 'w'],
-		]);
-		this.inviteReverseMap = new Map(Array.from(this.inviteReplacementMap, ([hex, replacement]) => [replacement, hex]));
+		this.id2Pattern     = ID2_PATTERN;
+		this.id3Pattern     = ID3_PATTERN;
+		this.id64Pattern    = ID64_PATTERN;
+		this.fiveMPattern   = FIVEM_PATTERN;
+		this.invitePattern  = INVITE_PATTERN;
+		this.shortUrlPattern = SHORT_URL_PATTERN;
 
 		if (input === undefined) {
 			return;
 		}
 
-		if (this.id2Pattern.test(input)) {
-			const matches = input.match(this.id2Pattern)!;
+		const id2Match = ID2_PATTERN.exec(input);
+		const id3Match = id2Match ? null : matchSteamId3(input);
+
+		if (id2Match) {
+			const matches = id2Match;
 			const accountId = (parseInt(matches[3], 10) * 2) + parseInt(matches[2], 10);
 
-			if (accountId > SteamId.maxAccountId) {
+			if (accountId > MAX_ACCOUNT_ID) {
 				throw new Error('SteamID account ID exceeds the unsigned 32-bit range.');
 			}
 
@@ -78,18 +80,17 @@ export class SteamId {
 			this.type      = Type.Individual;
 			this.instance  = Instance.Desktop;
 			this.accountId = accountId;
-		} else if (this.id3Pattern.test(input)) {
-			const normalized = input.startsWith('[') ? input.slice(1, -1) : input;
-			const matches   = normalized.match(/^([AGMPCgcLTIUai]):([0-4]):(0|[1-9][0-9]{0,9})(?::([0-9]{1,7}))?$/)!;
+		} else if (id3Match) {
+			const matches   = id3Match;
 			const character = matches[1];
 			const accountId = parseInt(matches[3], 10);
 			const instance  = matches[4] === undefined ? undefined : parseInt(matches[4], 10);
 
-			if (accountId > SteamId.maxAccountId) {
+			if (accountId > MAX_ACCOUNT_ID) {
 				throw new Error('SteamID account ID exceeds the unsigned 32-bit range.');
 			}
 
-			if (instance !== undefined && instance > SteamId.maxInstance) {
+			if (instance !== undefined && instance > MAX_INSTANCE) {
 				throw new Error('SteamID instance exceeds the unsigned 20-bit range.');
 			}
 
@@ -112,31 +113,33 @@ export class SteamId {
 			} else {
 				this.type = TypeCharacter[character as keyof typeof TypeCharacter] ?? Type.Invalid;
 			}
-		} else if (this.id64Pattern.test(input) || this.fiveMPattern.test(input)) {
-			if (input.includes('steam:')) {
-				input = BigInt(`0x${input.replace('steam:', '')}`).toString();
+		} else if (ID64_PATTERN.test(input) || FIVEM_PATTERN.test(input)) {
+			let value: bigint;
 
+			if (FIVEM_PATTERN.test(input)) {
+				value = BigInt(`0x${input.slice(6)}`);
 				this.format = Format.FiveM;
 			} else {
-				if (BigInt(input) > SteamId.maxSteamId64) {
+				value = BigInt(input);
+
+				if (value > MAX_STEAM_ID64) {
 					throw new Error('SteamID64 exceeds the unsigned 64-bit range.');
 				}
 
 				this.format = Format.SteamId64;
 			}
 
-			const num      = new UINT64(input, 10);
-			this.accountId = (num.toNumber() & 0xFFFFFFFF) >>> 0;
-			this.instance  = num.shiftRight(32).toNumber() & 0xFFFFF;
-			this.type      = num.shiftRight(20).toNumber() & 0xF;
-			this.universe  = num.shiftRight(4).toNumber();
+			this.accountId = Number(value & ACCOUNT_ID_MASK);
+			this.instance  = Number((value >> 32n) & INSTANCE_MASK);
+			this.type      = Number((value >> 52n) & TYPE_MASK);
+			this.universe  = Number(value >> 56n);
 		} else {
-			const shortUrlMatch = input.match(this.shortUrlPattern);
+			const shortUrlMatch = SHORT_URL_PATTERN.exec(input);
 			const inviteCode = shortUrlMatch?.[1] ?? input;
 
-			if (this.invitePattern.test(inviteCode)) {
+			if (INVITE_PATTERN.test(inviteCode)) {
 				const normalized = inviteCode.toLowerCase();
-				const accountIdHex = normalized.replace('-', '').split('').map(character => this.inviteReverseMap.get(character)).join('');
+				const accountIdHex = normalized.replace('-', '').split('').map(character => INVITE_ALPHABET.indexOf(character).toString(16)).join('');
 				const accountId = parseInt(accountIdHex, 16);
 
 				if (accountId > 0 && this.encodeInviteCode(accountId) === normalized) {
@@ -155,11 +158,11 @@ export class SteamId {
 	}
 
 	public isValid(): boolean {
-		if (!Number.isInteger(this.accountId) || this.accountId < 0 || this.accountId > SteamId.maxAccountId) {
+		if (!Number.isInteger(this.accountId) || this.accountId < 0 || this.accountId > MAX_ACCOUNT_ID) {
 			return false;
 		}
 
-		if (!Number.isInteger(this.instance) || this.instance < 0 || this.instance > SteamId.maxInstance) {
+		if (!Number.isInteger(this.instance) || this.instance < 0 || this.instance > MAX_INSTANCE) {
 			return false;
 		}
 
@@ -224,7 +227,12 @@ export class SteamId {
 	}
 
 	public toSteamId64(hexadecimal = false): string {
-		return new UINT64(this.accountId, (this.universe << 24) | (this.type << 20) | (this.instance)).toString(hexadecimal ? 16 : undefined);
+		const value = BigInt(this.accountId) |
+			(BigInt(this.instance) << 32n) |
+			(BigInt(this.type) << 52n) |
+			(BigInt(this.universe) << 56n);
+
+		return value.toString(hexadecimal ? 16 : 10);
 	}
 
 	public toFiveM(): string {
@@ -245,7 +253,7 @@ export class SteamId {
 
 	private encodeInviteCode(accountId: number): string {
 		const accountIdHex = accountId.toString(16);
-		const inviteCode   = accountIdHex.split('').map(c => this.inviteReplacementMap.has(c) ? this.inviteReplacementMap.get(c) : c).join('');
+		const inviteCode   = accountIdHex.split('').map(character => INVITE_ALPHABET[parseInt(character, 16)]).join('');
 
 		if (inviteCode.length <= 3) {
 			return inviteCode;
@@ -304,7 +312,7 @@ export class SteamId {
 	}
 
 	public static fromAccountId(accountId: number): SteamId {
-		if (!Number.isInteger(accountId) || accountId <= 0 || accountId > SteamId.maxAccountId) {
+		if (!Number.isInteger(accountId) || accountId <= 0 || accountId > MAX_ACCOUNT_ID) {
 			throw new RangeError('Account ID must be an unsigned 32-bit integer greater than zero.');
 		}
 
