@@ -95,6 +95,28 @@ test('parses IDs', () => {
 	expect(() => new SteamId(Math.random().toString())).toThrow(/Invalid/);
 });
 
+test('rejects malformed and out-of-range IDs', () => {
+	const malformed = [
+		'[U:1:66133073',
+		'U:1:66133073]',
+		'xxxxx76561198026398801',
+		'76561198026398801xxxxx',
+		'[u:1:66133073]',
+		'[U:5:66133073]',
+		'STEAM_5:1:33066536',
+		'STEAM_0:1:033066536',
+	];
+
+	for (const input of malformed) {
+		expect(() => new SteamId(input), input).toThrow(/Invalid/);
+	}
+
+	expect(() => new SteamId('STEAM_0:0:2147483648')).toThrow(/32-bit/);
+	expect(() => new SteamId('[U:1:4294967296]')).toThrow(/32-bit/);
+	expect(() => new SteamId('[A:1:1:1048576]')).toThrow(/20-bit/);
+	expect(() => new SteamId(((1n << 64n) + 76561198026398801n).toString())).toThrow(/64-bit/);
+});
+
 test('renders individual IDs', () => {
 	const sid2 = new SteamId('STEAM_0:1:33066536');
 	expect(sid2.toSteamId2()).toBe('STEAM_0:1:33066536');

@@ -6,6 +6,10 @@ import { Type, TypeCharacter } from './Type';
 import { ChatInstanceFlags } from './ChatInstanceFlags';
 
 export class SteamId {
+	private static readonly maxAccountId = 0xFFFFFFFF;
+	private static readonly maxInstance  = 0x000FFFFF;
+	private static readonly maxSteamId64 = (1n << 64n) - 1n;
+
 	public universe:  number;
 	public type:      number;
 	public instance:  number;
@@ -26,9 +30,9 @@ export class SteamId {
 		this.accountId = 0;
 		this.format    = Format.None;
 
-		this.id2Pattern   = /^STEAM_([0-5]):([0-1]):([0-9]+)$/;
-		this.id3Pattern   = /^\[?([a-zA-Z]):([0-5]):([0-9]+)(:[0-9]+)?\]?$/;
-		this.id64Pattern  = /\d{17,}/;
+		this.id2Pattern   = /^STEAM_([0-4]):([0-1]):(0|[1-9][0-9]{0,9})$/;
+		this.id3Pattern   = /^(?:\[[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?\]|[AGMPCgcLTIUai]:[0-4]:(?:0|[1-9][0-9]{0,9})(?::[0-9]{1,7})?)$/;
+		this.id64Pattern  = /^[1-9][0-9]{16,19}$/;
 		this.fiveMPattern = /^steam:[a-f0-9]{15}$/;
 
 		this.inviteReplacementMap = new Map<string, string>([
@@ -56,22 +60,38 @@ export class SteamId {
 
 		if (this.id2Pattern.test(input)) {
 			const matches = input.match(this.id2Pattern)!;
+			const accountId = (parseInt(matches[3], 10) * 2) + parseInt(matches[2], 10);
+
+			if (accountId > SteamId.maxAccountId) {
+				throw new Error('SteamID account ID exceeds the unsigned 32-bit range.');
+			}
 
 			this.format    = Format.SteamId;
 			this.universe  = parseInt(matches[1], 10) || Universe.Public;
 			this.type      = Type.Individual;
 			this.instance  = Instance.Desktop;
-			this.accountId = (parseInt(matches[3], 10) * 2) + parseInt(matches[2], 10);
+			this.accountId = accountId;
 		} else if (this.id3Pattern.test(input)) {
-			const matches   = input.match(this.id3Pattern)!;
+			const normalized = input.startsWith('[') ? input.slice(1, -1) : input;
+			const matches   = normalized.match(/^([AGMPCgcLTIUai]):([0-4]):(0|[1-9][0-9]{0,9})(?::([0-9]{1,7}))?$/)!;
 			const character = matches[1];
+			const accountId = parseInt(matches[3], 10);
+			const instance  = matches[4] === undefined ? undefined : parseInt(matches[4], 10);
+
+			if (accountId > SteamId.maxAccountId) {
+				throw new Error('SteamID account ID exceeds the unsigned 32-bit range.');
+			}
+
+			if (instance !== undefined && instance > SteamId.maxInstance) {
+				throw new Error('SteamID instance exceeds the unsigned 20-bit range.');
+			}
 
 			this.format    = Format.SteamId3;
 			this.universe  = parseInt(matches[2], 10);
-			this.accountId = parseInt(matches[3], 10);
+			this.accountId = accountId;
 
-			if (matches[4]) {
-				this.instance = parseInt(matches[4].substring(1), 10);
+			if (instance !== undefined) {
+				this.instance = instance;
 			} else if (character === 'U') {
 				this.instance = Instance.Desktop;
 			}
@@ -91,6 +111,10 @@ export class SteamId {
 
 				this.format = Format.FiveM;
 			} else {
+				if (BigInt(input) > SteamId.maxSteamId64) {
+					throw new Error('SteamID64 exceeds the unsigned 64-bit range.');
+				}
+
 				this.format = Format.SteamId64;
 			}
 
