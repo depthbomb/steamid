@@ -40,9 +40,12 @@
 	"scripts": {
 		"bench": "yarn build && vitest bench --run",
 		"build": "tsdown",
+		"check": "yarn lint && yarn typecheck && yarn coverage && yarn test:package",
 		"coverage": "vitest --run --coverage",
-		"test": "yarn build && vitest",
+		"lint": "eslint src tests benchmarks *.config.mts --ext .ts --ext .mts",
+		"test": "yarn build && vitest --run",
 		"test:package": "yarn build && node -e \"const api = require('./dist/index.js'); if (typeof api.SteamId !== 'function') process.exit(1)\" && node --input-type=module -e \"const api = await import('./dist/index.mjs'); if (typeof api.SteamId !== 'function') process.exit(1)\"",
+		"typecheck": "tsc --noEmit",
 		"release": "yarn build && release-it"
 	},
 	"devDependencies": {
